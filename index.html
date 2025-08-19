@@ -1,0 +1,410 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;">
+  <title>Wheel of Life — Aspirational vs. Actual</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <style>
+    :root { --bg:#0f1226; --card:#151936; --muted:#8c93bd; --text:#eef0ff; --accent:#6f8cff; --danger:#ff6f91; --ok:#2ad1a3; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:linear-gradient(120deg,#0f1226,#1a1f48); color:var(--text); }
+    header { padding:28px 20px; text-align:center; }
+    header h1 { margin:0 0 8px; font-size:28px; font-weight:700; }
+    header p { margin:0; color:var(--muted); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:24px; }
+    @media (min-width: 1200px) { .grid { grid-template-columns: 1fr 1.2fr; } }
+
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.08);
+            border-radius:16px; padding:18px; backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    .card h2 { margin:0 0 12px; font-size:18px; }
+    .subtle { color:var(--muted); font-size:14px; }
+
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px; }
+    .btn { padding:8px 12px; background:var(--card); border:1px solid rgba(255,255,255,0.12); color:var(--text);
+           border-radius:10px; cursor:pointer; transition:.18s; font-weight:600; }
+    .btn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.25); }
+    .btn.primary { background: var(--accent); border-color: transparent; color:white; }
+    .btn.ghost { background: transparent; }
+    .btn.danger { background: #2a1530; border-color: rgba(255,110,145,.35); color:#ffc0d1; }
+
+    table { width:100%; border-collapse: collapse; overflow:hidden; border-radius: 12px; }
+    thead th { text-align:left; font-size:12px; letter-spacing: .03em; text-transform: uppercase; color:var(--muted); border-bottom:1px solid rgba(255,255,255,.08); padding:10px; }
+    tbody td { padding:8px 10px; border-bottom:1px dashed rgba(255,255,255,.07); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    input[type="text"], input[type="number"] {
+      width:100%; padding:8px 10px; background:#11152e; border:1px solid rgba(255,255,255,0.12); color:var(--text);
+      border-radius:8px; outline:none; transition: border-color .2s, box-shadow .2s;
+    }
+    input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(111,140,255,.18); }
+    input[type="number"] { text-align:right; }
+
+    .totals { display:grid; grid-template-columns: 40% 20% 20% 20%; gap:8px; margin:10px 0 0; align-items:center; }
+    .pill { padding:6px 10px; border-radius:999px; background:#101432; border:1px solid rgba(255,255,255,0.08); font-size:12px; text-align:center; }
+    .pill.empty { background:transparent; border:none; }
+    .warn { color:#ffd7a8; border-color: rgba(255,215,168,.35); background: #2b1f12; }
+    .ok   { color:#baf5e7; border-color: rgba(42,209,163,.35); background: #122b22; }
+
+    .charts { display:grid; grid-template-columns: 1fr; gap:20px; }
+    @media (min-width: 900px) { .charts { grid-template-columns: 1fr; } }
+    
+    .chart-container { position: relative; height: 400px; }
+    .chart-container canvas { max-height: 100% !important; }
+
+    .footer-note { margin-top:8px; font-size:12px; color:var(--muted); }
+    .row-actions { display:flex; gap:6px; justify-content:flex-end; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Wheel of Life</h1>
+  <p>Compare your aspirational values with your actual experiences</p>
+</header>
+
+<div class="container">
+  <div class="grid">
+    <!-- Data Table -->
+    <div class="card">
+      <h2>Life Categories</h2>
+      <div class="toolbar">
+        <button class="btn primary" id="addBtn">Add Row</button>
+        <button class="btn ghost" id="resetBtn">Reset</button>
+        <button class="btn ghost" id="exportBtn">Export Data</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+        <button class="btn ghost" id="importBtn">Import Data</button>
+      </div>
+      
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th style="width: 40%;">Category</th>
+            <th style="width: 20%;">Aspirational</th>
+            <th style="width: 20%;">Actual</th>
+            <th style="width: 20%;">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      
+      <div class="totals" id="totals"></div>
+    </div>
+
+    <!-- Charts -->
+    <div>
+      <div class="charts">
+        <div class="card">
+          <h2>Aspirational vs Actual</h2>
+          <p class="subtle">Radar chart comparison - Higher scores indicate greater importance or satisfaction</p>
+          <div class="chart-container">
+            <canvas id="radarChart"></canvas>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h2>Gap Analysis</h2>
+          <p class="subtle">Areas needing attention - Red bars show large gaps, green shows good alignment</p>
+          <div class="chart-container">
+            <canvas id="gapChart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer-note">
+        Scores are out of 100. Higher values indicate greater satisfaction or importance.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+  const DEFAULT_DATA = [
+    { label: "Work", aspirational: 0, actual: 0 },
+    { label: "Family", aspirational: 0, actual: 0 },
+    { label: "Friends", aspirational: 0, actual: 0 },
+    { label: "Self", aspirational: 0, actual: 0 }
+  ];
+
+  let state = JSON.parse(localStorage.getItem("wheelOfLifeData")) || structuredClone(DEFAULT_DATA);
+  let radarChart, gapChart;
+
+
+  function persistAndUpdate() {
+    localStorage.setItem("wheelOfLifeData", JSON.stringify(state));
+    render();
+    updateCharts();
+  }
+
+  function render() {
+    const tbody = document.querySelector("#dataTable tbody");
+    tbody.innerHTML = "";
+    
+    state.forEach((row, index) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><input type="text" value="' + row.label + '" onchange="updateRow(' + index + ', \'label\', this.value)"></td>' +
+        '<td><input type="number" min="0" max="100" step="1" value="' + row.aspirational + '" onchange="updateRow(' + index + ', \'aspirational\', parseFloat(this.value))"></td>' +
+        '<td><input type="number" min="0" max="100" step="1" value="' + row.actual + '" onchange="updateRow(' + index + ', \'actual\', parseFloat(this.value))"></td>' +
+        '<td class="row-actions">' +
+        '<button class="btn ghost" onclick="moveRow(' + index + ', -1)" ' + (index === 0 ? 'disabled' : '') + '>↑</button>' +
+        '<button class="btn ghost" onclick="moveRow(' + index + ', 1)" ' + (index === state.length - 1 ? 'disabled' : '') + '>↓</button>' +
+        '<button class="btn danger" onclick="deleteRow(' + index + ')">×</button>' +
+        '</td>';
+      tbody.appendChild(tr);
+    });
+    
+    updateTotals();
+  }
+
+  function updateTotals() {
+    const totals = document.getElementById("totals");
+    const aspSum = state.reduce((sum, r) => sum + (r.aspirational || 0), 0);
+    const actSum = state.reduce((sum, r) => sum + (r.actual || 0), 0);
+    const aspAvg = aspSum / state.length;
+    const actAvg = actSum / state.length;
+    const gapAvg = aspAvg - actAvg;
+    
+    totals.innerHTML = '<div class="pill empty"></div>' +
+      '<div class="pill">Aspirational Total: ' + aspSum.toFixed(0) + '</div>' +
+      '<div class="pill">Actual Total: ' + actSum.toFixed(0) + '</div>' +
+      '<div class="pill ' + (gapAvg > 20 ? 'warn' : gapAvg < 10 ? 'ok' : '') + '">Gap: ' + (gapAvg >= 0 ? '+' : '') + gapAvg.toFixed(1) + '</div>';
+  }
+
+  function updateRow(index, field, value) {
+    state[index][field] = value;
+    persistAndUpdate();
+  }
+
+  function deleteRow(index) {
+    if (state.length <= 1) {
+      alert("You need at least one category!");
+      return;
+    }
+    state.splice(index, 1);
+    persistAndUpdate();
+  }
+
+  function moveRow(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= state.length) return;
+    
+    [state[index], state[newIndex]] = [state[newIndex], state[index]];
+    persistAndUpdate();
+  }
+
+  function addRow() {
+    state.push({ label: "New Category", aspirational: 50, actual: 50 });
+    persistAndUpdate();
+  }
+
+  function updateCharts() {
+  const labels = state.map(r => r.label);
+  const aspirationalData = state.map(r => r.aspirational || 0);
+  const actualData = state.map(r => r.actual || 0);
+
+  // Find the highest value in either column, minimum 10 for visibility
+  const maxValue = Math.max(
+    10,
+    ...aspirationalData,
+    ...actualData
+  );
+
+  // Radar Chart
+  const radarCtx = document.getElementById("radarChart").getContext("2d");
+  if (radarChart) radarChart.destroy();
+
+  radarChart = new Chart(radarCtx, {
+    type: "radar",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Aspirational",
+        data: aspirationalData,
+        borderColor: "#6f8cff",
+        backgroundColor: "rgba(111,140,255,0.15)",
+        pointBackgroundColor: "#6f8cff",
+        pointBorderColor: "#ffffff",
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        borderWidth: 3,
+      }, {
+        label: "Actual",
+        data: actualData,
+        borderColor: "#2ad1a3",
+        backgroundColor: "rgba(42,209,163,0.15)",
+        pointBackgroundColor: "#2ad1a3",
+        pointBorderColor: "#ffffff",
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        borderWidth: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { 
+          labels: { 
+            color: "#eef0ff",
+            font: { size: 14, weight: 'bold' },
+            padding: 20
+          },
+          position: 'top'
+        }
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          min: 0,
+          max: maxValue, // Dynamically set max
+          ticks: { 
+            color: "#8c93bd",
+            font: { size: 12 },
+            stepSize: Math.ceil(maxValue / 5),
+            backdropColor: 'rgba(0,0,0,0.1)'
+          },
+          grid: { color: "rgba(255,255,255,0.2)" },
+          angleLines: { color: "rgba(255,255,255,0.2)" },
+          pointLabels: { 
+            color: "#eef0ff", 
+            font: { size: 13, weight: 'bold' },
+            padding: 10
+          }
+        }
+      },
+      elements: {
+        line: {
+          tension: 0.1
+        }
+      }
+    }
+  });
+    
+    // Gap Chart
+    const gapCtx = document.getElementById("gapChart").getContext("2d");
+    if (gapChart) gapChart.destroy();
+    
+    const gaps = state.map(r => (r.aspirational || 0) - (r.actual || 0));
+    
+    gapChart = new Chart(gapCtx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Gap (Aspirational - Actual)",
+          data: gaps,
+          backgroundColor: gaps.map(g => g > 20 ? "#ff6f91" : g < 10 ? "#2ad1a3" : "#6f8cff"),
+          borderColor: gaps.map(g => g > 20 ? "#ff4d6d" : g < 10 ? "#22c55e" : "#4f73ff"),
+          borderWidth: 2,
+          borderRadius: 6,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: { 
+            labels: { 
+              color: "#eef0ff",
+              font: { size: 14, weight: 'bold' }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let value = context.raw;
+                let status = value > 20 ? ' (Needs Attention)' : value < 10 ? ' (Well Aligned)' : ' (Moderate Gap)';
+                return context.dataset.label + ': ' + value.toFixed(1) + status;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { 
+              color: "#8c93bd",
+              font: { size: 12 }
+            },
+            grid: { color: "rgba(255,255,255,0.15)" },
+            title: {
+              display: true,
+              text: 'Gap Size (Points)',
+              color: "#eef0ff",
+              font: { size: 13, weight: 'bold' }
+            }
+          },
+          y: {
+            ticks: { 
+              color: "#8c93bd",
+              font: { size: 12 }
+            },
+            grid: { color: "rgba(255,255,255,0.15)" },
+          }
+        },
+        elements: {
+          bar: {
+            borderRadius: 6
+          }
+        }
+      }
+    });
+  }
+
+  // Event listeners
+  const addBtn = document.getElementById("addBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const importBtn = document.getElementById("importBtn");
+  const importFile = document.getElementById("importFile");
+
+  addBtn.addEventListener("click", addRow);
+  importBtn.addEventListener("click", () => importFile.click());
+
+  resetBtn.addEventListener("click", () => {
+    if (confirm("Reset to the example data? This will overwrite your current inputs.")) {
+      state = structuredClone(DEFAULT_DATA);
+      persistAndUpdate();
+    }
+  });
+
+  exportBtn.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "wheel-of-life-data.json";
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  });
+
+  importFile.addEventListener("change", async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) throw new Error("Invalid format");
+      // Basic shape check
+      for (const r of data) {
+        if (!("label" in r) || !("aspirational" in r) || !("actual" in r)) throw new Error("Missing fields");
+      }
+      state = data;
+      persistAndUpdate();
+    } catch (err) {
+      alert("Could not import JSON. Make sure it's an array of {label, aspirational, actual}.");
+    } finally {
+      e.target.value = "";
+    }
+  });
+
+  // First render
+  render();
+  updateCharts();
+</script>
+</body>
+</html>
