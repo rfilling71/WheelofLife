@@ -43,13 +43,6 @@
     input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(111,140,255,.18); }
     input[type="number"] { text-align:right; }
 
-    .totals { display:grid; grid-template-columns: 40% 20% 20% 20%; margin:10px 0 0; align-items:center; }
-    .pill { padding:6px 0; border-radius:999px; background:#101432; border:1px solid rgba(255,255,255,0.08); font-size:12px; text-align:left; }
-    .pill:not(:first-child) { margin-left:10px; }
-    .pill.empty { background:transparent; border:none; visibility:hidden; }
-    .warn { color:#ffd7a8; border-color: rgba(255,215,168,.35); background: #2b1f12; }
-    .ok   { color:#baf5e7; border-color: rgba(42,209,163,.35); background: #122b22; }
-
     .charts { display:grid; grid-template-columns: 1fr; gap:20px; }
     @media (min-width: 900px) { .charts { grid-template-columns: 1fr; } }
     
@@ -91,8 +84,6 @@
         </thead>
         <tbody></tbody>
       </table>
-      
-      <div class="totals" id="totals"></div>
     </div>
 
     <!-- Charts -->
@@ -128,7 +119,8 @@
     { label: "Work", aspirational: 0, actual: 0 },
     { label: "Family", aspirational: 0, actual: 0 },
     { label: "Friends", aspirational: 0, actual: 0 },
-    { label: "Self", aspirational: 0, actual: 0 }
+    { label: "Self", aspirational: 0, actual: 0 },
+    { label: "Total", aspirational: 0, actual: 0, isTotal: true }
   ];
 
   let state = JSON.parse(localStorage.getItem("wheelOfLifeData")) || structuredClone(DEFAULT_DATA);
@@ -141,24 +133,42 @@
     updateCharts();
   }
 
+  function calculateTotals() {
+    if (!state.find(row => row.isTotal)) {
+      state.push({ label: "Total", aspirational: 0, actual: 0, isTotal: true });
+    }
+    const totalRow = state.find(row => row.isTotal);
+    const otherRows = state.filter(row => !row.isTotal);
+    
+    totalRow.aspirational = otherRows.reduce((sum, r) => sum + (r.aspirational || 0), 0);
+    totalRow.actual = otherRows.reduce((sum, r) => sum + (r.actual || 0), 0);
+  }
+
   function render() {
+    calculateTotals();
+    
     const tbody = document.querySelector("#dataTable tbody");
     tbody.innerHTML = "";
     
     state.forEach((row, index) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = '<td><input type="text" value="' + row.label + '" onchange="updateRow(' + index + ', \'label\', this.value)"></td>' +
-        '<td><input type="number" min="0" max="100" step="1" value="' + row.aspirational + '" onchange="updateRow(' + index + ', \'aspirational\', parseFloat(this.value))"></td>' +
-        '<td><input type="number" min="0" max="100" step="1" value="' + row.actual + '" onchange="updateRow(' + index + ', \'actual\', parseFloat(this.value))"></td>' +
-        '<td class="row-actions">' +
-        '<button class="btn ghost" onclick="moveRow(' + index + ', -1)" ' + (index === 0 ? 'disabled' : '') + '>↑</button>' +
-        '<button class="btn ghost" onclick="moveRow(' + index + ', 1)" ' + (index === state.length - 1 ? 'disabled' : '') + '>↓</button>' +
-        '<button class="btn danger" onclick="deleteRow(' + index + ')">×</button>' +
-        '</td>';
+      if (row.isTotal) {
+        tr.innerHTML = '<td><strong>' + row.label + '</strong></td>' +
+          '<td style="text-align: center;"><strong>' + row.aspirational.toFixed(0) + '</strong></td>' +
+          '<td style="text-align: center;"><strong>' + row.actual.toFixed(0) + '</strong></td>' +
+          '<td></td>';
+      } else {
+        tr.innerHTML = '<td><input type="text" value="' + row.label + '" onchange="updateRow(' + index + ', \'label\', this.value)"></td>' +
+          '<td><input type="number" min="0" max="100" step="1" value="' + row.aspirational + '" onchange="updateRow(' + index + ', \'aspirational\', parseFloat(this.value))"></td>' +
+          '<td><input type="number" min="0" max="100" step="1" value="' + row.actual + '" onchange="updateRow(' + index + ', \'actual\', parseFloat(this.value))"></td>' +
+          '<td class="row-actions">' +
+          '<button class="btn ghost" onclick="moveRow(' + index + ', -1)" ' + (index === 0 ? 'disabled' : '') + '>↑</button>' +
+          '<button class="btn ghost" onclick="moveRow(' + index + ', 1)" ' + (index === state.length - 1 ? 'disabled' : '') + '>↓</button>' +
+          '<button class="btn danger" onclick="deleteRow(' + index + ')">×</button>' +
+          '</td>';
+      }
       tbody.appendChild(tr);
     });
-    
-    updateTotals();
   }
 
   function updateTotals() {
@@ -181,7 +191,8 @@
   }
 
   function deleteRow(index) {
-    if (state.length <= 1) {
+    if (state[index].isTotal) return; // Prevent deleting total row
+    if (state.filter(row => !row.isTotal).length <= 1) {
       alert("You need at least one category!");
       return;
     }
@@ -190,8 +201,10 @@
   }
 
   function moveRow(index, direction) {
+    if (state[index].isTotal) return; // Prevent moving total row
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= state.length) return;
+    if (state[newIndex].isTotal) return; // Prevent moving into total row position
     
     [state[index], state[newIndex]] = [state[newIndex], state[index]];
     persistAndUpdate();
