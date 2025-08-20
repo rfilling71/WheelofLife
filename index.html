@@ -45,7 +45,7 @@
 
     .totals { display:grid; grid-template-columns: 40% 20% 20% 20%; gap:8px; margin:10px 0 0; align-items:center; }
     .pill { padding:6px 10px; border-radius:999px; background:#101432; border:1px solid rgba(255,255,255,0.08); font-size:12px; text-align:center; }
-    .pill.empty { background:transparent; border:none; }
+    .pill.empty { background:transparent; border:none; visibility:hidden; }
     .warn { color:#ffd7a8; border-color: rgba(255,215,168,.35); background: #2b1f12; }
     .ok   { color:#baf5e7; border-color: rgba(42,209,163,.35); background: #122b22; }
 
@@ -168,9 +168,9 @@
     const actAvg = actSum / state.length;
     const gapAvg = aspAvg - actAvg;
     
-    totals.innerHTML = '<div class="pill empty"></div>' +
-      '<div class="pill">Aspirational Total: ' + aspSum.toFixed(0) + '</div>' +
-      '<div class="pill">Actual Total: ' + actSum.toFixed(0) + '</div>' +
+    totals.innerHTML = '<div class="pill empty">Total</div>' +
+      '<div class="pill">Total: ' + aspSum.toFixed(0) + '</div>' +
+      '<div class="pill">Total: ' + actSum.toFixed(0) + '</div>' +
       '<div class="pill ' + (gapAvg > 20 ? 'warn' : gapAvg < 10 ? 'ok' : '') + '">Gap: ' + (gapAvg >= 0 ? '+' : '') + gapAvg.toFixed(1) + '</div>';
   }
 
