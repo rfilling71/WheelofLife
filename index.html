@@ -134,14 +134,15 @@
   }
 
   function calculateTotals() {
-    if (!state.find(row => row.isTotal)) {
-      state.push({ label: "Total", aspirational: 0, actual: 0, isTotal: true });
-    }
-    const totalRow = state.find(row => row.isTotal);
-    const otherRows = state.filter(row => !row.isTotal);
+    // Remove total row if it exists
+    state = state.filter(row => !row.isTotal);
     
-    totalRow.aspirational = otherRows.reduce((sum, r) => sum + (r.aspirational || 0), 0);
-    totalRow.actual = otherRows.reduce((sum, r) => sum + (r.actual || 0), 0);
+    // Calculate totals
+    const aspirationalTotal = state.reduce((sum, r) => sum + (r.aspirational || 0), 0);
+    const actualTotal = state.reduce((sum, r) => sum + (r.actual || 0), 0);
+    
+    // Add total row at the end
+    state.push({ label: "Total", aspirational: aspirationalTotal, actual: actualTotal, isTotal: true });
   }
 
   function render() {
@@ -153,9 +154,9 @@
     state.forEach((row, index) => {
       const tr = document.createElement("tr");
       if (row.isTotal) {
-        tr.innerHTML = '<td><strong>' + row.label + '</strong></td>' +
-          '<td style="text-align: center;"><strong>' + row.aspirational.toFixed(0) + '</strong></td>' +
-          '<td style="text-align: center;"><strong>' + row.actual.toFixed(0) + '</strong></td>' +
+        tr.innerHTML = '<td><input type="text" value="' + row.label + '" style="font-weight: bold;" readonly></td>' +
+          '<td><input type="number" value="' + row.aspirational.toFixed(0) + '" style="font-weight: bold; text-align: right;" readonly></td>' +
+          '<td><input type="number" value="' + row.actual.toFixed(0) + '" style="font-weight: bold; text-align: right;" readonly></td>' +
           '<td></td>';
       } else {
         tr.innerHTML = '<td><input type="text" value="' + row.label + '" onchange="updateRow(' + index + ', \'label\', this.value)"></td>' +
